@@ -1,0 +1,13 @@
+/home/tom/data/repos/ratpack-cassandra/CassandraDriver/src/obj/Debug/net8.0/CassandraDriver.csproj.AssemblyReference.cache
+/home/tom/data/repos/ratpack-cassandra/CassandraDriver/src/obj/Debug/net8.0/CassandraDriver.GeneratedMSBuildEditorConfig.editorconfig
+/home/tom/data/repos/ratpack-cassandra/CassandraDriver/src/obj/Debug/net8.0/CassandraDriver.AssemblyInfoInputs.cache
+/home/tom/data/repos/ratpack-cassandra/CassandraDriver/src/obj/Debug/net8.0/CassandraDriver.AssemblyInfo.cs
+/home/tom/data/repos/ratpack-cassandra/CassandraDriver/src/obj/Debug/net8.0/CassandraDriver.csproj.CoreCompileInputs.cache
+/home/tom/data/repos/ratpack-cassandra/CassandraDriver/src/obj/Debug/net8.0/CassandraDriver.sourcelink.json
+/home/tom/data/repos/ratpack-cassandra/CassandraDriver/src/bin/Debug/net8.0/CassandraDriver.deps.json
+/home/tom/data/repos/ratpack-cassandra/CassandraDriver/src/bin/Debug/net8.0/CassandraDriver.dll
+/home/tom/data/repos/ratpack-cassandra/CassandraDriver/src/bin/Debug/net8.0/CassandraDriver.pdb
+/home/tom/data/repos/ratpack-cassandra/CassandraDriver/src/obj/Debug/net8.0/CassandraDriver.dll
+/home/tom/data/repos/ratpack-cassandra/CassandraDriver/src/obj/Debug/net8.0/refint/CassandraDriver.dll
+/home/tom/data/repos/ratpack-cassandra/CassandraDriver/src/obj/Debug/net8.0/CassandraDriver.pdb
+/home/tom/data/repos/ratpack-cassandra/CassandraDriver/src/obj/Debug/net8.0/ref/CassandraDriver.dll
