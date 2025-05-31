@@ -1,3 +1,5 @@
+using Cassandra;
+
 namespace CassandraDriver.Configuration;
 
 public class CassandraConfiguration
@@ -13,6 +15,7 @@ public class CassandraConfiguration
         SpeculativeRetryPercentile = 99;
         MaxSpeculativeExecutions = 3;
         RemoteHostsPerDc = 1;
+        RetryPolicy = new RetryPolicyConfiguration();
     }
 
     public SslConfiguration? Truststore { get; set; }
@@ -41,6 +44,20 @@ public class CassandraConfiguration
     public int RemoteHostsPerDc { get; set; }
     
     public int? ProtocolVersion { get; set; }
+
+    public ConsistencyLevel? DefaultConsistencyLevel { get; set; }
+
+    public ConsistencyLevel? DefaultSerialConsistencyLevel { get; set; }
+
+    public RetryPolicyConfiguration RetryPolicy { get; set; }
+}
+
+public class RetryPolicyConfiguration
+{
+    public bool Enabled { get; set; } = false;
+    public int MaxRetries { get; set; } = 3;
+    public int DelayMilliseconds { get; set; } = 1000;
+    public int MaxDelayMilliseconds { get; set; } = 30000;
 }
 
 public class SslConfiguration
