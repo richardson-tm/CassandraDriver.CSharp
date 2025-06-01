@@ -12,14 +12,13 @@ namespace CassandraDriver.Migrations
 {
     public class CassandraMigrationRunner
     {
-        // private readonly CassandraService _cassandraService; // Commented out
+        private readonly CassandraService _cassandraService;
         private readonly ILogger<CassandraMigrationRunner> _logger;
         private readonly MigrationConfiguration _migrationConfig;
 
-        // public CassandraMigrationRunner(CassandraService cassandraService, MigrationConfiguration migrationConfig, ILogger<CassandraMigrationRunner> logger) // Commented out
-        public CassandraMigrationRunner(MigrationConfiguration migrationConfig, ILogger<CassandraMigrationRunner> logger) // Updated constructor
+        public CassandraMigrationRunner(CassandraService cassandraService, MigrationConfiguration migrationConfig, ILogger<CassandraMigrationRunner> logger)
         {
-            // _cassandraService = cassandraService ?? throw new ArgumentNullException(nameof(cassandraService)); // Commented out
+            _cassandraService = cassandraService ?? throw new ArgumentNullException(nameof(cassandraService));
             _migrationConfig = migrationConfig ?? throw new ArgumentNullException(nameof(migrationConfig));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
@@ -33,9 +32,7 @@ CREATE TABLE IF NOT EXISTS {_migrationConfig.TableName} (
     description TEXT
 );";
             _logger.LogInformation("Ensuring schema migrations table '{TableName}' exists...", _migrationConfig.TableName);
-            // DDL operations: typically no retries or specific resilience.
-            // await _cassandraService.ExecuteAsync(cql, new Resilience.ResilienceOptions { Profile = Resilience.ResiliencePolicyProfile.None }); // Commented out
-            await Task.CompletedTask; // Placeholder
+            await _cassandraService.ExecuteAsync(cql); // Using the string cql overload
         }
 
         public virtual async Task<List<SchemaMigration>> GetAppliedMigrationsAsync()
@@ -50,22 +47,19 @@ CREATE TABLE IF NOT EXISTS {_migrationConfig.TableName} (
             // We cannot directly use GetAsync<SchemaMigration> if its TableAttribute is fixed.
             // So, we construct a query manually.
             var query = $"SELECT version, applied_on, description FROM {_migrationConfig.TableName}";
-            // SELECTs are idempotent.
-            // var rowSet = await _cassandraService.ExecuteAsync(query, new Resilience.ResilienceOptions { Profile = Resilience.ResiliencePolicyProfile.DefaultRetry, IsIdempotent = true }); // Commented out
+            var rowSet = await _cassandraService.ExecuteAsync(query);
 
-            // Placeholder implementation
-            await Task.CompletedTask;
             var applied = new List<SchemaMigration>();
-            // foreach (var row in rowSet) // Commented out as rowSet is not available due to CassandraService being commented out
-            // {
-            //     applied.Add(new SchemaMigration
-            //     { // Stray brace removed from here
-            //         Version = row.GetValue<string>("version"),
-            //         AppliedOn = row.GetValue<DateTimeOffset>("applied_on"),
-            //         Description = row.GetValue<string>("description")
-            //     });
-            // }
-            return applied; // Return empty list as placeholder
+            foreach (var row in rowSet)
+            {
+                applied.Add(new SchemaMigration
+                {
+                    Version = row.GetValue<string>("version"),
+                    AppliedOn = row.GetValue<DateTimeOffset>("applied_on"),
+                    Description = row.GetValue<string>("description")
+                });
+            }
+            return applied;
         }
 
         public virtual Task<List<Migration>> DiscoverMigrationsAsync(string location)
@@ -167,10 +161,8 @@ CREATE TABLE IF NOT EXISTS {_migrationConfig.TableName} (
                     {
                         if (string.IsNullOrWhiteSpace(stmt)) continue;
                         _logger.LogDebug("Executing statement: {Statement}", stmt);
-                        // DDL statements in migration script.
-                        // await _cassandraService.ExecuteAsync(stmt, new Resilience.ResilienceOptions { Profile = Resilience.ResiliencePolicyProfile.None }); // Commented out
+                        await _cassandraService.ExecuteAsync(stmt); // Using the string cql overload
                     }
-                    await Task.CompletedTask; // Placeholder
 
                     var schemaMigration = new SchemaMigration
                     {
@@ -183,10 +175,7 @@ CREATE TABLE IF NOT EXISTS {_migrationConfig.TableName} (
                     // Similar to GetAppliedMigrationsAsync, this might need a specific CQL insert.
                     // For now, let's build the insert manually.
                     var insertCql = $"INSERT INTO {_migrationConfig.TableName} (version, applied_on, description) VALUES (?, ?, ?)";
-                    // Inserting into migration table: should be idempotent with IF NOT EXISTS, but here it's a direct insert after checking.
-                    // Let's use a cautious resilience profile.
-                    // await _cassandraService.ExecuteAsync(insertCql, new Resilience.ResilienceOptions { Profile = Resilience.ResiliencePolicyProfile.None }, schemaMigration.Version, schemaMigration.AppliedOn, schemaMigration.Description); // Commented out
-                    await Task.CompletedTask; // Placeholder
+                    await _cassandraService.ExecuteAsync(insertCql, schemaMigration.Version, schemaMigration.AppliedOn, schemaMigration.Description);
 
                     _logger.LogInformation("Successfully applied migration {Version}: {Description}.", migration.Version.ToString("D3"), migration.Description);
                 }

@@ -1,23 +1,34 @@
 # CassandraDriver for C#
 
 [![NuGet](https://img.shields.io/nuget/v/CassandraDriver.svg)](https://www.nuget.org/packages/CassandraDriver/)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
-[![Tests](https://img.shields.io/badge/tests-33%2F33-brightgreen.svg)]()
+[![Build Status](https://github.com/richardson-tm/CassandraDriver.CSharp/actions/workflows/dotnet-build.yml/badge.svg)](https://github.com/richardson-tm/CassandraDriver.CSharp/actions)
+[![Tests](https://img.shields.io/badge/tests-150%2B-brightgreen.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A production-ready C# Cassandra driver with health checks, dependency injection, and advanced features. Ported from the battle-tested Java Ratpack Cassandra module.
+A comprehensive, production-ready C# Cassandra driver with advanced features including mapping, LINQ support, migrations, resilience patterns, and health monitoring. Originally ported from the battle-tested Java Ratpack Cassandra module and significantly enhanced.
 
 ## 🚀 Features
 
+### Core Features
 - **🔌 Connection Management**: Automatic pooling, reconnection, and session lifecycle management
+- **🗺️ Object Mapping**: Attribute-based entity mapping with support for all Cassandra types
+- **🔍 Query Builders**: Type-safe, fluent API for CRUD operations
 - **⚖️ Smart Load Balancing**: Token-aware and datacenter-aware routing for optimal performance
-- **⚡ Speculative Execution**: Reduce p99 latencies with configurable retry policies
 - **🔒 SSL/TLS Support**: Secure connections with mutual TLS authentication
 - **🏥 Health Monitoring**: Built-in ASP.NET Core health checks with detailed diagnostics
 - **💉 Dependency Injection**: First-class Microsoft.Extensions.DependencyInjection integration
+
+### Advanced Features
+- **🔄 Schema Migrations**: Automatic schema versioning and migration support
+- **📊 LINQ Provider**: Write queries in C# with full IntelliSense support
+- **💪 Resilience**: Polly-based retry policies and circuit breakers
+- **📈 Telemetry**: OpenTelemetry metrics for monitoring and alerting
+- **⚡ Speculative Execution**: Reduce p99 latencies with configurable retry policies
+- **🎯 Lightweight Transactions**: Support for compare-and-set operations with TTL
+- **🔷 User-Defined Types**: Full support for complex custom types
+- **📡 Reactive Extensions**: Rx.NET support for reactive programming
+- **🚀 Statement Caching**: Automatic prepared statement management
 - **☁️ Cloud Ready**: AWS EC2 multi-region support with address translation
-- **🔄 Fully Async**: Complete async/await support throughout the API
-- **🐳 Docker Ready**: Pre-configured 3-node Cassandra 5.0 test cluster
 
 ## 📦 Installation
 
@@ -28,7 +39,7 @@ dotnet add package CassandraDriver
 
 ### From Source
 ```bash
-git clone https://github.com/yourusername/CassandraDriver.CSharp.git
+git clone https://github.com/richardson-tm/CassandraDriver.CSharp.git
 cd CassandraDriver.CSharp
 dotnet build
 ```
@@ -45,7 +56,12 @@ Add to your `appsettings.json`:
     "Seeds": ["localhost:9042"],
     "Keyspace": "my_keyspace",
     "User": "cassandra",
-    "Password": "cassandra"
+    "Password": "cassandra",
+    "Migrations": {
+      "Enabled": true,
+      "KeyspaceClass": "SimpleStrategy",
+      "ReplicationFactor": 1
+    }
   }
 }
 ```
@@ -59,7 +75,7 @@ using CassandraDriver.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add Cassandra services
+// Add Cassandra services with all features
 builder.Services.AddCassandra(builder.Configuration);
 
 // Add health checks
@@ -73,7 +89,89 @@ app.MapHealthChecks("/health");
 app.Run();
 ```
 
-### 3. Use in Your Code
+### 3. Define Your Entities
+
+```csharp
+using CassandraDriver.Mapping.Attributes;
+
+[Table("users")]
+public class User
+{
+    [PartitionKey]
+    public Guid Id { get; set; }
+    
+    [ClusteringKey(0)]
+    public DateTime CreatedAt { get; set; }
+    
+    [Column("user_name")]
+    public string Username { get; set; } = string.Empty;
+    
+    [Column("email_address")]
+    public string Email { get; set; } = string.Empty;
+    
+    [Column("is_active")]
+    public bool IsActive { get; set; }
+    
+    [Computed("toTimestamp(created_at)")]
+    public long CreatedTimestamp { get; set; }
+    
+    [Ignore]
+    public string TempData { get; set; } = string.Empty;
+}
+```
+
+### 4. Use the CassandraMapper
+
+```csharp
+public class UserService
+{
+    private readonly CassandraMapperService _mapper;
+    
+    public UserService(CassandraMapperService mapper)
+    {
+        _mapper = mapper;
+    }
+    
+    // Simple CRUD operations
+    public async Task<User?> GetUserAsync(Guid id, DateTime createdAt)
+    {
+        return await _mapper.GetAsync<User>(id, createdAt);
+    }
+    
+    public async Task CreateUserAsync(User user)
+    {
+        // With optional TTL and if-not-exists
+        var result = await _mapper.InsertAsync(user, 
+            ifNotExists: true, 
+            ttl: 3600);
+            
+        if (!result.Applied)
+        {
+            // User already exists
+            var existingUser = result.Entity;
+        }
+    }
+    
+    public async Task UpdateUserAsync(User user)
+    {
+        // With lightweight transaction
+        var result = await _mapper.UpdateAsync(user,
+            ifCondition: "is_active = true");
+            
+        if (!result.Applied)
+        {
+            // Condition failed
+        }
+    }
+    
+    public async Task DeleteUserAsync(Guid id, DateTime createdAt)
+    {
+        await _mapper.DeleteAsync<User>(id, createdAt);
+    }
+}
+```
+
+### 5. Use Query Builders
 
 ```csharp
 public class UserRepository
@@ -85,262 +183,342 @@ public class UserRepository
         _cassandra = cassandra;
     }
     
-    public async Task<User?> GetUserAsync(Guid id)
+    public async Task<List<User>> GetActiveUsersAsync(int limit = 100)
     {
-        var result = await _cassandra.ExecuteAsync(
-            "SELECT * FROM users WHERE id = ?", id);
-        
-        var row = result.FirstOrDefault();
-        return row != null ? MapToUser(row) : null;
+        return await _cassandra.Query<User>()
+            .Where(u => u.IsActive, QueryOperator.Equals, true)
+            .OrderBy(u => u.CreatedAt, ascending: false)
+            .Limit(limit)
+            .ToListAsync();
+    }
+    
+    public async IAsyncEnumerable<User> StreamAllUsersAsync()
+    {
+        await foreach (var user in _cassandra.Query<User>()
+            .PageSize(1000)
+            .ToAsyncEnumerable())
+        {
+            yield return user;
+        }
+    }
+    
+    public async Task<User?> FindByEmailAsync(string email)
+    {
+        // Using secondary index or materialized view
+        return await _cassandra.Query<User>()
+            .Where("email_address = ?", email)
+            .FirstOrDefaultAsync();
     }
 }
 ```
 
-## 🧪 Testing
+### 6. Use LINQ Provider
 
-### Quick Test Setup
-
-```bash
-# Start 3-node Cassandra cluster and run all tests
-./scripts/setup-test-cluster.sh
-dotnet test
-
-# Or step by step:
-docker compose up -d                    # Start cluster
-./scripts/wait-for-cassandra.sh        # Wait for nodes
-docker exec -it cassandra-seed cqlsh   # Connect to cluster
-dotnet test                             # Run tests
+```csharp
+public class UserAnalytics
+{
+    private readonly IQueryable<User> _users;
+    
+    public UserAnalytics(CassandraService cassandra)
+    {
+        // Create LINQ queryable
+        _users = cassandra.CreateQueryable<User>();
+    }
+    
+    public async Task<List<User>> GetRecentActiveUsersAsync()
+    {
+        var cutoffDate = DateTime.UtcNow.AddDays(-7);
+        
+        return await _users
+            .Where(u => u.IsActive && u.CreatedAt > cutoffDate)
+            .OrderByDescending(u => u.CreatedAt)
+            .Take(50)
+            .ToListAsync();
+    }
+}
 ```
 
-### Test Categories
+## 🔧 Advanced Configuration
 
-```bash
-# Unit tests only (no Docker required)
-dotnet test --filter "Category!=Integration"
-
-# Integration tests only
-dotnet test --filter "Category=Integration"
-
-# With code coverage
-dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
-```
-
-See [DOCKER_TESTING.md](DOCKER_TESTING.md) for advanced testing scenarios.
-
-## ⚙️ Configuration
-
-### Basic Configuration
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| Seeds | string[] | Required | Cassandra contact points |
-| Keyspace | string | null | Default keyspace |
-| User | string | null | Authentication username |
-| Password | string | null | Authentication password |
-| ProtocolVersion | int? | null | Protocol version (null = auto) |
-
-### Advanced Configuration
+### Complete Configuration Example
 
 ```json
 {
   "Cassandra": {
-    "Seeds": ["node1:9042", "node2:9042"],
+    "Seeds": ["node1:9042", "node2:9042", "node3:9042"],
     "Keyspace": "production",
     "User": "app_user",
     "Password": "secure_password",
-    "RemoteHostsPerDc": 2,
+    "ProtocolVersion": 4,
+    "DefaultConsistencyLevel": "LocalQuorum",
+    "DefaultSerialConsistencyLevel": "Serial",
+    
+    "RetryPolicy": {
+      "Enabled": true,
+      "MaxRetries": 3,
+      "DelayMilliseconds": 100,
+      "MaxDelayMilliseconds": 2000,
+      "RetryableExceptions": [
+        "OperationTimedOutException",
+        "UnavailableException",
+        "ReadTimeoutException",
+        "WriteTimeoutException"
+      ]
+    },
+    
+    "CircuitBreaker": {
+      "Enabled": true,
+      "FailureThreshold": 0.5,
+      "SamplingDuration": 10,
+      "MinimumThroughput": 10,
+      "BreakDuration": 30
+    },
+    
+    "Pooling": {
+      "CoreConnectionsPerHostLocal": 2,
+      "MaxConnectionsPerHostLocal": 8,
+      "CoreConnectionsPerHostRemote": 1,
+      "MaxConnectionsPerHostRemote": 2,
+      "MaxRequestsPerConnection": 2048,
+      "HeartbeatIntervalMillis": 30000
+    },
+    
+    "QueryOptions": {
+      "DefaultPageSize": 5000,
+      "PrepareStatementsOnAllHosts": true,
+      "ReprepareStatementsOnUp": true
+    },
+    
     "SpeculativeExecutionEnabled": true,
     "SpeculativeRetryPercentile": 99.0,
     "MaxSpeculativeExecutions": 3,
-    "Ec2TranslationEnabled": false,
+    
+    "Migrations": {
+      "Enabled": true,
+      "MigrationsPath": "Migrations",
+      "KeyspaceClass": "NetworkTopologyStrategy",
+      "DataCenterReplication": {
+        "dc1": 3,
+        "dc2": 2
+      }
+    },
+    
     "Truststore": {
       "Path": "/certs/truststore.pfx",
       "Password": "truststore_password"
     },
     "Keystore": {
-      "Path": "/certs/keystore.pfx", 
+      "Path": "/certs/keystore.pfx",
       "Password": "keystore_password"
     }
   }
 }
 ```
 
-### Programmatic Configuration
+## 📊 Schema Migrations
+
+Create migration files in your project:
 
 ```csharp
-builder.Services.AddCassandra(options =>
+// Migrations/001_CreateUsersTable.cs
+public class CreateUsersTable : Migration
 {
-    options.Seeds = new[] { "cassandra1", "cassandra2" };
-    options.Keyspace = "my_app";
-    options.SpeculativeExecutionEnabled = true;
-    options.Truststore = new SslConfiguration
+    public override int Version => 1;
+    public override string Name => "Create users table";
+    
+    public override string GetCql()
     {
-        Path = "/certs/ca.pfx",
-        Password = "password"
+        return @"
+            CREATE TABLE IF NOT EXISTS users (
+                id UUID,
+                created_at TIMESTAMP,
+                user_name TEXT,
+                email_address TEXT,
+                is_active BOOLEAN,
+                PRIMARY KEY (id, created_at)
+            ) WITH CLUSTERING ORDER BY (created_at DESC)
+              AND default_time_to_live = 0
+              AND gc_grace_seconds = 864000;
+            
+            CREATE INDEX IF NOT EXISTS ON users (email_address);
+        ";
+    }
+}
+```
+
+Migrations run automatically on startup when enabled, or manually:
+
+```csharp
+public class MigrationController : ControllerBase
+{
+    private readonly CassandraMigrationRunner _migrationRunner;
+    
+    [HttpPost("migrate")]
+    public async Task<IActionResult> RunMigrations()
+    {
+        await _migrationRunner.ApplyMigrationsAsync();
+        return Ok("Migrations completed");
+    }
+}
+```
+
+## 🛡️ Resilience Patterns
+
+### Retry Policy
+
+```csharp
+// Configure custom retry policy
+services.AddCassandra(options =>
+{
+    options.RetryPolicy = new RetryPolicyConfiguration
+    {
+        Enabled = true,
+        MaxRetries = 5,
+        DelayMilliseconds = 200,
+        RetryableExceptions = new[]
+        {
+            nameof(OperationTimedOutException),
+            nameof(OverloadedException)
+        }
     };
 });
 ```
 
-## 🏥 Health Checks
-
-The driver includes comprehensive health checks that validate:
-- Cluster connectivity
-- Node availability
-- Keyspace accessibility
-- Version compatibility
+### Circuit Breaker
 
 ```csharp
-app.MapHealthChecks("/health", new HealthCheckOptions
+// Circuit breaker prevents cascading failures
+services.AddCassandra(options =>
 {
-    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+    options.CircuitBreaker = new CircuitBreakerConfiguration
+    {
+        Enabled = true,
+        FailureThreshold = 0.25, // 25% failure rate
+        SamplingDuration = 60,   // Over 60 seconds
+        BreakDuration = 30       // Break for 30 seconds
+    };
 });
 ```
 
-Example health check response:
+## 📈 Metrics and Monitoring
+
+The driver automatically exports OpenTelemetry metrics:
+
+```csharp
+// Configure OpenTelemetry
+builder.Services.AddOpenTelemetry()
+    .WithMetrics(metrics =>
+    {
+        metrics
+            .AddMeter("CassandraDriver")
+            .AddPrometheusExporter();
+    });
+```
+
+Available metrics:
+- `cassandra_queries_started_total`
+- `cassandra_queries_succeeded_total`
+- `cassandra_queries_failed_total`
+- `cassandra_query_duration_ms`
+- `cassandra_prepared_statements_cached`
+- `cassandra_prepared_statements_evicted`
+
+## 🔄 Reactive Extensions
+
+```csharp
+using CassandraDriver.Reactive;
+
+public class ReactiveUserService
+{
+    private readonly CassandraService _cassandra;
+    
+    public IObservable<User> GetUsersStream()
+    {
+        return _cassandra.Query<User>()
+            .Where(u => u.IsActive, QueryOperator.Equals, true)
+            .ToObservable()
+            .Buffer(TimeSpan.FromSeconds(1))
+            .SelectMany(batch => batch);
+    }
+}
+```
+
+## 🧪 Testing
+
+### Unit Testing with Mocks
+
+```csharp
+[Fact]
+public async Task GetUser_ReturnsUser_WhenExists()
+{
+    // Arrange
+    var mockCassandra = new Mock<CassandraService>();
+    var expectedUser = new User { Id = Guid.NewGuid() };
+    
+    mockCassandra
+        .Setup(c => c.Query<User>())
+        .Returns(new TestQueryBuilder<User>(expectedUser));
+    
+    var service = new UserService(mockCassandra.Object);
+    
+    // Act
+    var user = await service.GetUserAsync(expectedUser.Id);
+    
+    // Assert
+    Assert.Equal(expectedUser.Id, user.Id);
+}
+```
+
+### Integration Testing
+
+```bash
+# Start test cluster
+./scripts/setup-test-cluster.sh
+
+# Run all tests
+dotnet test
+
+# Run only integration tests
+dotnet test --filter "Category=Integration"
+```
+
+## 🐛 Troubleshooting
+
+### Enable Debug Logging
+
 ```json
 {
-  "status": "Healthy",
-  "results": {
-    "cassandra": {
-      "status": "Healthy",
-      "description": "Cassandra cluster is healthy",
-      "data": {
-        "version": "5.0.2",
-        "connectedHosts": 3,
-        "datacenter": "datacenter1"
-      }
+  "Logging": {
+    "LogLevel": {
+      "CassandraDriver": "Debug",
+      "Cassandra": "Debug"
     }
   }
 }
 ```
 
-## 📚 Advanced Usage
+### Common Issues
 
-### Prepared Statements
-
-```csharp
-// Prepare once, execute many times
-var prepared = await _cassandra.Session.PrepareAsync(
-    "INSERT INTO users (id, name, email) VALUES (?, ?, ?)");
-
-// Execute with different parameters
-await _cassandra.ExecuteAsync(prepared.Bind(id1, name1, email1));
-await _cassandra.ExecuteAsync(prepared.Bind(id2, name2, email2));
-```
-
-### Batch Operations
-
-```csharp
-var batch = new BatchStatement()
-    .Add(new SimpleStatement("INSERT INTO users (id, name) VALUES (?, ?)", id1, name1))
-    .Add(new SimpleStatement("INSERT INTO users (id, name) VALUES (?, ?)", id2, name2))
-    .Add(new SimpleStatement("UPDATE counters SET value = value + 1 WHERE id = ?", id3));
-
-await _cassandra.ExecuteAsync(batch);
-```
-
-### Async Enumeration
-
-```csharp
-var query = "SELECT * FROM large_table";
-var statement = new SimpleStatement(query).SetPageSize(1000);
-
-await foreach (var row in _cassandra.ExecuteAsync(statement))
-{
-    ProcessRow(row);
-}
-```
-
-### Direct Cluster Access
-
-```csharp
-// Access cluster metadata
-var keyspaces = _cassandra.Cluster.Metadata.GetKeyspaces();
-var tables = _cassandra.Cluster.Metadata.GetKeyspace("my_keyspace").GetTablesMetadata();
-
-// Monitor cluster events
-_cassandra.Cluster.HostAdded += (sender, host) => 
-    _logger.LogInformation($"New host added: {host.Address}");
-```
-
-## 🔄 Migration from Java
-
-This C# port maintains API compatibility with the Java Ratpack module where possible:
-
-### API Mapping
-
-| Java | C# | Notes |
-|------|-----|-------|
-| `CassandraModule.Config` | `CassandraConfiguration` | Same properties |
-| `Promise<ResultSet>` | `Task<RowSet>` | Standard C# async |
-| `@Inject` | Constructor injection | Native DI |
-| `Guice Module` | `IServiceCollection` | MS DI |
-| `.jks` certificates | `.pfx` certificates | X509 format |
-
-### Code Migration Example
-
-Java:
-```java
-@Inject
-public UserDao(CassandraService cassandra) {
-    this.cassandra = cassandra;
-}
-
-public Promise<User> getUser(UUID id) {
-    return cassandra.execute("SELECT * FROM users WHERE id = ?", id)
-        .map(rs -> rs.one())
-        .map(this::mapToUser);
-}
-```
-
-C#:
-```csharp
-public UserDao(CassandraService cassandra)
-{
-    _cassandra = cassandra;
-}
-
-public async Task<User?> GetUserAsync(Guid id)
-{
-    var result = await _cassandra.ExecuteAsync(
-        "SELECT * FROM users WHERE id = ?", id);
-    var row = result.FirstOrDefault();
-    return row != null ? MapToUser(row) : null;
-}
-```
-
-## 📊 Performance
-
-The driver is optimized for high-throughput, low-latency operations:
-
-- **Connection pooling**: Maintains persistent connections to all nodes
-- **Token-aware routing**: Queries go directly to the correct replica
-- **Speculative execution**: Reduces p99 latencies by up to 50%
-- **Prepared statements**: Cached and reused automatically
-- **Async throughout**: No blocking operations
-
-## 🐛 Known Limitations
-
-1. **Speculative Execution**: Uses `ConstantSpeculativeExecutionPolicy` instead of percentile-based (C# driver limitation)
-2. **EC2 Translation**: Logs warning but requires additional AWS SDK for full implementation
-3. **Host Mocking**: DataStax driver's `Host` class is difficult to mock in tests
+1. **Connection Timeouts**: Increase `SocketOptions.ConnectTimeoutMillis`
+2. **Prepared Statement Cache**: Monitor eviction metrics
+3. **Memory Usage**: Tune `DefaultPageSize` and connection pool settings
 
 ## 🤝 Contributing
 
-See [TODO.md](TODO.md) for the roadmap and planned features. Contributions are welcome!
+See [CHANGELOG.md](CHANGELOG.md) for version history and [TODO.md](TODO.md) for planned features.
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🔗 Related Projects
+## 🙏 Acknowledgments
 
-- [DataStax C# Driver](https://github.com/datastax/csharp-driver)
-- [Original Java Ratpack Module](https://github.com/smartthingsoss/ratpack-cassandra)
-- [Cassandra](https://cassandra.apache.org/)
+- Original Java Ratpack Cassandra module contributors
+- DataStax C# Driver team
+- .NET community
 
 ---
 
 <p align="center">
-  Made with ❤️ for the C# community
+  Made with ❤️ for the C# and Cassandra communities
 </p>

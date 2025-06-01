@@ -5,7 +5,95 @@ All notable changes to the Cassandra C# Driver will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2025-05-30
+## [2.0.0] - 2025-01-06
+
+### Added
+
+#### Core Features
+- **Object Mapping System**: Complete attribute-based entity mapping
+  - `[Table]`, `[PartitionKey]`, `[ClusteringKey]`, `[Column]` attributes
+  - `[Ignore]` for excluding properties from mapping
+  - `[Computed]` for calculated columns
+  - `[Udt]` for User-Defined Type support
+  - Automatic property-to-column mapping with naming conventions
+
+- **Query Builders**: Type-safe, fluent API for all CRUD operations
+  - `SelectQueryBuilder<T>` with Where, OrderBy, Limit, paging support
+  - `InsertQueryBuilder<T>` with TTL and IF NOT EXISTS support
+  - `UpdateQueryBuilder<T>` with conditional updates
+  - `DeleteQueryBuilder<T>` for safe deletions
+  - Expression-based property selection
+
+- **LINQ Provider**: Full LINQ to CQL translation
+  - IQueryable implementation for Cassandra
+  - Support for Where, Select, OrderBy, Take operations
+  - Expression tree to CQL query translation
+  - Async query execution
+
+#### Advanced Features
+- **Schema Management**:
+  - `SchemaGenerator` for automatic CREATE TABLE statements from entities
+  - `SchemaManager` for schema synchronization
+  - Migration system with version tracking
+  - Support for SimpleStrategy and NetworkTopologyStrategy
+  - Automatic keyspace creation with configurable replication
+
+- **Resilience Patterns**:
+  - Polly-based retry policies with exponential backoff
+  - Circuit breaker pattern implementation
+  - Configurable failure thresholds and break durations
+  - Transient exception detection
+
+- **Telemetry & Metrics**:
+  - OpenTelemetry integration with `DriverMetrics`
+  - Query performance metrics (start, success, failure counts)
+  - Query duration histograms
+  - Prepared statement cache metrics
+  - Tagged metrics for operation types
+
+- **Advanced Cassandra Features**:
+  - Lightweight Transactions (LWT) with `LwtResult<T>`
+  - TTL support on INSERT and UPDATE operations
+  - User-Defined Types (UDT) mapping
+  - Consistency level configuration (per-query and default)
+  - Serial consistency level support
+
+- **Developer Experience**:
+  - `CassandraMapperService` for high-level CRUD operations
+  - `CassandraStartupInitializer` for automatic schema setup
+  - Reactive Extensions (Rx.NET) integration
+  - IAsyncEnumerable support for streaming large datasets
+  - Comprehensive IntelliSense documentation
+
+### Changed
+- **Breaking**: Refactored `CassandraService` architecture
+  - Moved mapping logic to dedicated `TableMappingResolver`
+  - Added dependency on `ILoggerFactory` for migration logging
+  - Enhanced with generic CRUD methods
+  - Added `Query<T>()` method for fluent queries
+
+- **Breaking**: Enhanced configuration structure
+  - Added `RetryPolicy` configuration section
+  - Added `CircuitBreaker` configuration section
+  - Added `Migrations` configuration section
+  - Extended `Pooling` and `QueryOptions` configurations
+
+- Improved error handling throughout the codebase
+- Updated all projects to use nullable reference types
+- Enhanced logging with structured logging patterns
+
+### Fixed
+- Cassandra driver v3 API compatibility issues
+  - Removed unsupported pooling options (MinRequestsPerConnectionThreshold, MaxQueueSize)
+  - Fixed nullable ConsistencyLevel handling
+  - Updated to use driver v3 method signatures
+- Statement caching thread-safety with ConcurrentDictionary
+- Proper disposal of resources in all services
+
+### Security
+- No changes to security model
+
+## [1.0.0] - 2024-12-15
 
 ### Added
 - Initial C# port of Java Ratpack Cassandra driver
@@ -61,19 +149,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - EC2 address translation not fully implemented (logs warning)
 - Host class mocking limitations in unit tests
 - Speculative execution uses constant delay instead of percentile-based
-- No reactive extensions support (RxCassandraService not ported)
-- No migration service (CassandraMigrationService not ported)
 
-## Future Releases
+## [0.1.0] - 2024-12-01
 
-### [1.1.0] - Planned
-- Complete EC2 multi-region address translation
-- Add System.Reactive support for RxCassandraService
-- Implement connection resilience patterns (circuit breaker, retry)
-- Add performance metrics and monitoring integration
+### Added
+- Project initialization
+- Basic project structure
+- Initial documentation
 
-### [1.2.0] - Planned
-- Port CassandraMigrationService for schema management
-- Add distributed tracing support
-- Implement advanced load balancing strategies
-- Add connection pool tuning options
+[2.0.0]: https://github.com/richardson-tm/CassandraDriver.CSharp/compare/v1.0.0...v2.0.0
+[1.0.0]: https://github.com/richardson-tm/CassandraDriver.CSharp/releases/tag/v1.0.0
+[0.1.0]: https://github.com/richardson-tm/CassandraDriver.CSharp/releases/tag/v0.1.0

@@ -8,7 +8,7 @@ using Polly.Retry;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 // using Cassandra.Mapping; // This is the driver's mapping; we are creating a custom one. Keep for now.
-using Cassandra.Exceptions;
+// Exception types are in the main Cassandra namespace
 using CassandraDriver.Mapping; // Our new mapping namespace
 using System.Text; // For StringBuilder
 using System.Linq; // For Linq operations
@@ -30,7 +30,7 @@ public class CassandraService : IHostedService, IDisposable
     private readonly ILoggerFactory _loggerFactory; // For MigrationRunner
     private readonly ConsistencyLevel? _defaultConsistencyLevel;
     private readonly ConsistencyLevel? _defaultSerialConsistencyLevel;
-    private readonly AsyncRetryPolicy<RowSet> _retryPolicy;
+    private readonly IAsyncPolicy<RowSet> _retryPolicy;
     private readonly TableMappingResolver _mappingResolver;
     private readonly ConcurrentDictionary<string, PreparedStatement> _preparedStatementCache;
     private ICluster? _cluster;
@@ -55,7 +55,7 @@ public class CassandraService : IHostedService, IDisposable
 
         if (retryPolicyConfig.Enabled)
         {
-            _retryPolicy = Policy.Handle<DriverException>(ex => ex is OperationTimedOutException ||
+            _retryPolicy = Policy<RowSet>.Handle<DriverException>(ex => ex is OperationTimedOutException ||
                                                               ex is UnavailableException ||
                                                               ex is OverloadedException ||
                                                               ex is WriteTimeoutException ||
@@ -63,10 +63,10 @@ public class CassandraService : IHostedService, IDisposable
                 .WaitAndRetryAsync(
                     retryPolicyConfig.MaxRetries,
                     retryAttempt => TimeSpan.FromMilliseconds(Math.Min(Math.Pow(2, retryAttempt) * retryPolicyConfig.DelayMilliseconds, retryPolicyConfig.MaxDelayMilliseconds)),
-                    (exception, timeSpan, retryCount, context) =>
+                    onRetry: (outcome, timeSpan, retryCount, context) =>
                     {
-                        _logger.LogWarning(exception, "Retry {RetryCount} due to {ExceptionType}. Waiting {TimeSpanTotalSeconds}s before next attempt. Operation: {OperationKey}",
-                            retryCount, exception.GetType().Name, timeSpan.TotalSeconds, context.OperationKey);
+                        _logger.LogWarning(outcome.Exception, "Retry {RetryCount} due to {ExceptionType}. Waiting {TimeSpanTotalSeconds}s before next attempt",
+                            retryCount, outcome.Exception?.GetType().Name ?? "Unknown", timeSpan.TotalSeconds);
                     }
                 );
         }
@@ -229,18 +229,22 @@ public class CassandraService : IHostedService, IDisposable
             poolingOptions.SetCoreConnectionsPerHost(HostDistance.Remote, poolingConfig.CoreConnectionsPerHostRemote.Value);
         if (poolingConfig.MaxConnectionsPerHostRemote.HasValue)
             poolingOptions.SetMaxConnectionsPerHost(HostDistance.Remote, poolingConfig.MaxConnectionsPerHostRemote.Value);
-        if (poolingConfig.MinRequestsPerConnectionThresholdLocal.HasValue)
-            poolingOptions.SetMinRequestsPerConnectionThreshold(HostDistance.Local, poolingConfig.MinRequestsPerConnectionThresholdLocal.Value);
-        if (poolingConfig.MinRequestsPerConnectionThresholdRemote.HasValue)
-            poolingOptions.SetMinRequestsPerConnectionThreshold(HostDistance.Remote, poolingConfig.MinRequestsPerConnectionThresholdRemote.Value);
+        // MinRequestsPerConnectionThreshold not available in driver v3
+        // if (poolingConfig.MinRequestsPerConnectionThresholdLocal.HasValue)
+        //     poolingOptions.SetMinRequestsPerConnectionThreshold(HostDistance.Local, poolingConfig.MinRequestsPerConnectionThresholdLocal.Value);
+        // if (poolingConfig.MinRequestsPerConnectionThresholdRemote.HasValue)
+        //     poolingOptions.SetMinRequestsPerConnectionThreshold(HostDistance.Remote, poolingConfig.MinRequestsPerConnectionThresholdRemote.Value);
         if (poolingConfig.MaxRequestsPerConnection.HasValue)
             poolingOptions.SetMaxRequestsPerConnection(poolingConfig.MaxRequestsPerConnection.Value);
-        if (poolingConfig.MaxQueueSize.HasValue)
-            poolingOptions.SetMaxQueueSize(poolingConfig.MaxQueueSize.Value);
-        if (poolingConfig.HeartbeatIntervalMillis.HasValue)
-            poolingOptions.SetHeartbeatInterval(poolingConfig.HeartbeatIntervalMillis.Value);
-        if (poolingConfig.PoolTimeoutMillis.HasValue)
-            poolingOptions.SetPoolTimeoutMillis(poolingConfig.PoolTimeoutMillis.Value);
+        // MaxQueueSize not available in driver v3
+        // if (poolingConfig.MaxQueueSize.HasValue)
+        //     poolingOptions.SetMaxQueueSize(poolingConfig.MaxQueueSize.Value);
+        // HeartbeatInterval configured at SocketOptions level in driver v3
+        // if (poolingConfig.HeartbeatIntervalMillis.HasValue)
+        //     poolingOptions.SetHeartbeatInterval(poolingConfig.HeartbeatIntervalMillis.Value);
+        // SetPoolTimeoutMillis not available in driver v3
+        // if (poolingConfig.PoolTimeoutMillis.HasValue)
+        //     poolingOptions.SetPoolTimeoutMillis(poolingConfig.PoolTimeoutMillis.Value);
         return builder.WithPoolingOptions(poolingOptions);
     }
 
@@ -253,8 +257,9 @@ public class CassandraService : IHostedService, IDisposable
             queryOptions.SetPrepareOnAllHosts(queryConfig.PrepareStatementsOnAllHosts.Value);
         if (queryConfig.ReprepareStatementsOnUp.HasValue)
             queryOptions.SetReprepareOnUp(queryConfig.ReprepareStatementsOnUp.Value);
-        if (queryConfig.DefaultMetadataSyncEnabled.HasValue)
-            queryOptions.SetMetadataSyncEnabled(queryConfig.DefaultMetadataSyncEnabled.Value);
+        // MetadataSyncEnabled not available on QueryOptions in driver v3
+        // if (queryConfig.DefaultMetadataSyncEnabled.HasValue)
+        //     queryOptions.SetMetadataSyncEnabled(queryConfig.DefaultMetadataSyncEnabled.Value);
         return builder.WithQueryOptions(queryOptions);
     }
 
@@ -279,9 +284,10 @@ public class CassandraService : IHostedService, IDisposable
     private static string GetCqlOperationType(IStatement statement)
     {
         if (statement is SimpleStatement simpleStatement) return GetCqlOperationType(simpleStatement.QueryString);
-        if (statement is BoundStatement boundStatement && boundStatement.PreparedStatement != null)
+        if (statement is BoundStatement)
         {
-            return GetCqlOperationType(boundStatement.PreparedStatement.Cql);
+            // In driver v3, we can't access the CQL from BoundStatement
+            return "BOUND";
         }
         return "unknown";
     }
@@ -333,8 +339,10 @@ public class CassandraService : IHostedService, IDisposable
         try
         {
             operationType = GetCqlOperationType(statement);
-            statement.SetConsistencyLevel(consistencyLevel ?? _defaultConsistencyLevel);
-            statement.SetSerialConsistencyLevel(serialConsistencyLevel ?? _defaultSerialConsistencyLevel);
+            if (consistencyLevel.HasValue || _defaultConsistencyLevel.HasValue)
+                statement.SetConsistencyLevel((consistencyLevel ?? _defaultConsistencyLevel)!.Value);
+            if (serialConsistencyLevel.HasValue || _defaultSerialConsistencyLevel.HasValue)
+                statement.SetSerialConsistencyLevel((serialConsistencyLevel ?? _defaultSerialConsistencyLevel)!.Value);
             var result = await _retryPolicy.ExecuteAsync(async () => await Session.ExecuteAsync(statement).ConfigureAwait(false));
             DriverMetrics.QueriesSucceeded.Add(1, new KeyValuePair<string, object?>(DriverMetrics.TagKeys.CqlOperation, operationType));
             return result;
@@ -370,8 +378,10 @@ public class CassandraService : IHostedService, IDisposable
                 _preparedStatementCache[cql] = preparedStatement;
             }
             var boundStatement = preparedStatement.Bind(values);
-            boundStatement.SetConsistencyLevel(consistencyLevel ?? _defaultConsistencyLevel);
-            boundStatement.SetSerialConsistencyLevel(serialConsistencyLevel ?? _defaultSerialConsistencyLevel);
+            if (consistencyLevel.HasValue || _defaultConsistencyLevel.HasValue)
+                boundStatement.SetConsistencyLevel((consistencyLevel ?? _defaultConsistencyLevel)!.Value);
+            if (serialConsistencyLevel.HasValue || _defaultSerialConsistencyLevel.HasValue)
+                boundStatement.SetSerialConsistencyLevel((serialConsistencyLevel ?? _defaultSerialConsistencyLevel)!.Value);
             var result = await _retryPolicy.ExecuteAsync(async () => await Session.ExecuteAsync(boundStatement).ConfigureAwait(false));
             DriverMetrics.QueriesSucceeded.Add(1, new KeyValuePair<string, object?>(DriverMetrics.TagKeys.CqlOperation, operationType));
             return result;
@@ -391,15 +401,22 @@ public class CassandraService : IHostedService, IDisposable
         }
     }
 
-    private async Task<LwtResult<T>> ParseLwtResultAsync<T>(RowSet rowSet, TableMappingInfo mappingInfo, T? originalEntity = null) where T : class, new()
+    private Task<LwtResult<T>> ParseLwtResult<T>(RowSet rowSet, TableMappingInfo mappingInfo, T? originalEntity = null) where T : class, new()
     {
         var firstRow = rowSet.FirstOrDefault();
         bool applied = false;
         T? currentEntity = null;
 
-        if (firstRow != null && firstRow.ContainsColumn("[applied]"))
+        if (firstRow != null)
         {
-            applied = firstRow.GetValue<bool>("[applied]");
+            try
+            {
+                applied = firstRow.GetValue<bool>("[applied]");
+            }
+            catch
+            {
+                // Column doesn't exist
+            }
             if (!applied)
             {
                 // If not applied, Cassandra returns current values of columns in IF condition for updates
@@ -419,7 +436,7 @@ public class CassandraService : IHostedService, IDisposable
             // The methods below will set 'applied' based on their specific logic.
         }
 
-        return new LwtResult<T>(applied, rowSet, currentEntity ?? originalEntity);
+        return Task.FromResult(new LwtResult<T>(applied, rowSet, currentEntity ?? originalEntity));
     }
 
 
@@ -489,7 +506,7 @@ public class CassandraService : IHostedService, IDisposable
 
         if (ifNotExists)
         {
-            return await ParseLwtResultAsync<T>(rowSet, mappingInfo, entity);
+            return await ParseLwtResult<T>(rowSet, mappingInfo, entity);
         }
         // For non-LWT inserts, assume applied if no exception. Entity in LwtResult will be the input entity.
         return new LwtResult<T>(true, rowSet, entity);
@@ -552,7 +569,7 @@ public class CassandraService : IHostedService, IDisposable
 
         if (!string.IsNullOrWhiteSpace(ifCondition))
         {
-            return await ParseLwtResultAsync<T>(rowSet, mappingInfo, entity);
+            return await ParseLwtResult<T>(rowSet, mappingInfo, entity);
         }
         // For non-LWT updates, assume applied if no exception.
         return new LwtResult<T>(true, rowSet, entity);
@@ -619,7 +636,7 @@ public class CassandraService : IHostedService, IDisposable
         foreach (var propMap in mappingInfo.Properties.Where(p => !p.IsIgnored))
         {
             string effectiveColumnName = propMap.ColumnName;
-            if (row.ContainsColumn(effectiveColumnName))
+            try
             {
                 object? cassandraValue;
                 try
@@ -671,10 +688,13 @@ public class CassandraService : IHostedService, IDisposable
                     }
                 }
             }
-            else if (propMap.IsComputed)
+            catch
             {
-                _logger.LogDebug("Computed column {ColumnName} (Expression: {ComputedExpression}) not found in RowSet for entity {EntityName}. Property {PropertyName} will not be set.",
-                    propMap.ColumnName, propMap.ComputedExpression, typeof(T).FullName, propMap.PropertyInfo.Name);
+                if (propMap.IsComputed)
+                {
+                    _logger.LogDebug("Computed column {ColumnName} (Expression: {ComputedExpression}) not found in RowSet for entity {EntityName}. Property {PropertyName} will not be set.",
+                        propMap.ColumnName, propMap.ComputedExpression, typeof(T).FullName, propMap.PropertyInfo.Name);
+                }
             }
         }
         return entity;

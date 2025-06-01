@@ -3,9 +3,9 @@ using System;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using QueryBuilder.Queries; // Assuming your query builders are here
+using CassandraDriver.Queries; // Assuming your query builders are here
 
-namespace QueryBuilder.Linq
+namespace CassandraDriver.Linq
 {
     public class CassandraQueryProvider : IQueryProvider
     {

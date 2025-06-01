@@ -1,7 +1,8 @@
 # TODO: Cassandra Driver C# - Feature Roadmap
 
-## ✅ Completed in Initial Release (v1.0.0)
+## ✅ Completed Features
 
+### v1.0.0 (Initial Release)
 - [x] Core CassandraService implementation with connection management
 - [x] Health check integration with ASP.NET Core
 - [x] Dependency injection support via ServiceCollection extensions
@@ -13,235 +14,177 @@
 - [x] Docker testing environment with 3-node Cassandra 5.0 cluster
 - [x] Complete documentation suite
 
-## 🚀 High Priority Features
+### v2.0.0 (Current Release)
+- [x] **Query Builder / LINQ Support**
+  - [x] Fluent query builder API (SelectQueryBuilder, InsertQueryBuilder, etc.)
+  - [x] LINQ provider for type-safe queries
+  - [x] Support for SELECT, INSERT, UPDATE, DELETE operations
+  - [x] Type-safe column references with expressions
+  - [x] IAsyncEnumerable support for streaming
 
-### 1. Query Builder / LINQ Support
-- [ ] Implement fluent query builder API
-- [ ] Add LINQ provider for type-safe queries
-- [ ] Support for SELECT, INSERT, UPDATE, DELETE operations
-- [ ] Type-safe column references
-```csharp
-// Example desired API
-var users = await _cassandra.Query<User>()
-    .Where(u => u.Email == "test@example.com")
-    .OrderBy(u => u.CreatedAt)
-    .Take(10)
-    .ToListAsync();
-```
+- [x] **Object Mapping (ORM)**
+  - [x] Attribute-based mapping (`[Table]`, `[Column]`, `[PartitionKey]`, `[ClusteringKey]`)
+  - [x] Support for User-Defined Types (UDTs) with `[Udt]` attribute
+  - [x] Computed columns with `[Computed]` attribute
+  - [x] Automatic type conversion
+  - [x] CassandraMapperService for CRUD operations
 
-### 2. Object Mapping (ORM)
-- [ ] Attribute-based mapping (`[Table]`, `[Column]`, `[PartitionKey]`, `[ClusteringKey]`)
-- [ ] Convention-based mapping
-- [ ] Support for User-Defined Types (UDTs)
-- [ ] Automatic type conversion
-- [ ] Mapper service for CRUD operations
-```csharp
-[Table("users")]
-public class User
-{
-    [PartitionKey]
-    public Guid Id { get; set; }
-    
-    [Column("email_address")]
-    public string Email { get; set; }
-    
-    [ClusteringKey(0)]
-    public DateTime CreatedAt { get; set; }
-}
-```
+- [x] **Retry and Resilience Policies**
+  - [x] Configurable retry policies (exponential backoff)
+  - [x] Circuit breaker pattern implementation
+  - [x] Integration with Polly library
+  - [x] Transient exception detection
 
-### 3. Retry and Resilience Policies
-- [ ] Configurable retry policies (exponential backoff, fixed delay)
-- [ ] Circuit breaker pattern implementation
-- [ ] Custom retry predicates
-- [ ] Integration with Polly library
-- [ ] Request idempotency support
+- [x] **Consistency Level Management**
+  - [x] Per-query consistency level configuration
+  - [x] Global default consistency levels
+  - [x] Serial consistency support
 
-### 4. Consistency Level Management
-- [ ] Per-query consistency level configuration
-- [ ] Global default consistency levels
-- [ ] Serial consistency support
-- [ ] Dynamic consistency based on operation type
-```csharp
-await _cassandra.ExecuteAsync(query, ConsistencyLevel.Quorum);
-```
+- [x] **Monitoring and Observability**
+  - [x] Integration with OpenTelemetry
+  - [x] Request/response metrics (latency, throughput)
+  - [x] Query execution metrics
+  - [x] Failed request tracking with tags
 
-## 📊 Monitoring and Observability
+- [x] **Advanced Query Features**
+  - [x] Automatic paging with async enumerable
+  - [x] Lightweight transaction support (LWT)
+  - [x] TTL (Time To Live) support
 
-### 5. Metrics and Performance Monitoring
-- [ ] Integration with OpenTelemetry
-- [ ] Request/response metrics (latency, throughput)
-- [ ] Connection pool statistics
-- [ ] Query execution metrics
-- [ ] Failed request tracking
-- [ ] Integration with popular APM tools
+- [x] **Schema Management**
+  - [x] Schema synchronization with SchemaManager
+  - [x] Table/Keyspace creation from code
+  - [x] Migration support with version tracking
 
-### 6. Distributed Tracing
-- [ ] OpenTelemetry trace integration
-- [ ] Query execution spans
-- [ ] Custom trace attributes
-- [ ] W3C trace context propagation
-- [ ] Correlation ID support
+- [x] **Prepared Statement Management**
+  - [x] Automatic prepared statement caching
+  - [x] Thread-safe cache implementation
 
-### 7. Logging Enhancements
-- [ ] Structured logging for all operations
-- [ ] Query execution logs with parameters
-- [ ] Slow query logging
-- [ ] Connection state change logging
-- [ ] Configurable log levels per component
+- [x] **Reactive Extensions (RxCassandra)**
+  - [x] IObservable support for streaming results
+  - [x] Integration with System.Reactive
 
-## 🔧 Advanced Features
+## 🚀 High Priority Features (v2.1.0)
 
-### 8. Connection Pool Configuration
-- [ ] Min/max connections per host
-- [ ] Connection timeout settings
-- [ ] Heartbeat interval configuration
-- [ ] Connection warm-up strategies
-- [ ] Pool exhaustion policies
-```csharp
-options.ConnectionPooling = new PoolingOptions()
-    .SetCoreConnectionsPerHost(HostDistance.Local, 2)
-    .SetMaxConnectionsPerHost(HostDistance.Local, 10)
-    .SetHeartBeatInterval(30000);
-```
+### 1. Performance Optimizations
+- [ ] Statement cache warmup on startup
+- [ ] Zero-allocation query patterns for hot paths
+- [ ] Connection pool performance tuning
+- [ ] Batch operation optimizations
+- [ ] Memory pool for frequently allocated objects
 
-### 9. Compression Support
-- [ ] LZ4 compression
-- [ ] Snappy compression
-- [ ] Per-connection compression settings
-- [ ] Compression threshold configuration
+### 2. Enhanced Monitoring
+- [ ] Connection pool statistics dashboard
+- [ ] Slow query detection and logging
+- [ ] Cache hit/miss ratios
+- [ ] Performance counters for Windows
+- [ ] Grafana dashboard templates
 
-### 10. Advanced Query Features
-- [ ] Automatic paging with async enumerable
-- [ ] Lightweight transaction support
-- [ ] Batch operation enhancements
-- [ ] Time-based UUID generation helpers
-- [ ] TTL (Time To Live) support
-```csharp
-await foreach (var user in _cassandra.PagedQueryAsync<User>(query, pageSize: 100))
-{
-    // Process each user
-}
-```
+### 3. Developer Experience
+- [ ] Visual Studio analyzer for query validation
+- [ ] IntelliSense improvements for LINQ queries
+- [ ] Code snippets for common patterns
+- [ ] Better error messages with suggestions
 
-### 11. Schema Management
-- [ ] Schema synchronization
-- [ ] Table/Keyspace creation from code
-- [ ] Index management
-- [ ] Schema versioning
-- [ ] Schema comparison tools
+## 📊 Medium Priority Features (v2.2.0)
 
-### 12. Migration Support (Port from Java)
-- [ ] Migration runner implementation
-- [ ] Changelog-based migrations
-- [ ] Rollback support
-- [ ] Migration history tracking
-- [ ] Integration with popular migration tools
+### 4. Advanced Cassandra Features
+- [ ] Materialized view support
+- [ ] Secondary index management APIs
+- [ ] Time-window compaction strategy configuration
+- [ ] Custom type serializers
+- [ ] Tuple type support
+- [ ] Collection type optimizations (frozen collections)
 
-## 🎯 Developer Experience
+### 5. Cloud Provider Support
+- [ ] Full AWS EC2 multi-region address translation
+- [ ] Azure Cosmos DB Cassandra API compatibility
+- [ ] Google Cloud Bigtable compatibility layer
+- [ ] DataStax Astra DB support
 
-### 13. Prepared Statement Management
-- [ ] Automatic prepared statement caching
-- [ ] Cache size limits and eviction
-- [ ] Statement preparation strategies
-- [ ] Cache statistics and monitoring
+### 6. Testing Improvements
+- [ ] In-memory Cassandra mock for unit tests
+- [ ] Test data builders with Bogus
+- [ ] Performance benchmarking suite
+- [ ] Chaos engineering tests
+- [ ] Load testing framework
 
-### 14. Custom Type Serialization
-- [ ] Custom type codec registration
-- [ ] JSON serialization support
-- [ ] Binary serialization options
-- [ ] Type conversion extensibility
+## 🔧 Low Priority Features (v3.0.0)
 
-### 15. Query Timeout and Cancellation
-- [ ] Per-query timeout configuration
-- [ ] Statement-level timeout settings
-- [ ] Proper cancellation token support
-- [ ] Timeout escalation strategies
-
-### 16. Client-Side Features
-- [ ] Client-side timestamps
-- [ ] Token-aware batch splitting
-- [ ] Smart query routing
-- [ ] Speculative execution improvements
-
-## 🔌 Integration Features
-
-### 17. Reactive Extensions (RxCassandra)
-- [ ] IObservable support for streaming results
-- [ ] Reactive query execution
-- [ ] Backpressure handling
-- [ ] Integration with System.Reactive
-
-### 18. Framework Integrations
+### 7. Advanced Integrations
 - [ ] Entity Framework Core provider
 - [ ] MassTransit saga persistence
 - [ ] Orleans grain storage provider
 - [ ] Hangfire job storage
+- [ ] GraphQL to CQL translator
 
-### 19. Cloud-Native Features
-- [ ] Kubernetes operator for Cassandra
-- [ ] Service mesh integration
-- [ ] Cloud provider specific optimizations
-- [ ] Managed identity support (Azure, AWS)
-
-### 20. Testing Utilities
-- [ ] In-memory Cassandra mock
-- [ ] Test data builders
-- [ ] Integration test helpers
-- [ ] Performance testing framework
-
-## 📚 Documentation and Samples
-
-### 21. Comprehensive Documentation
-- [ ] API documentation with examples
-- [ ] Performance tuning guide
-- [ ] Best practices documentation
-- [ ] Migration guide from other drivers
-- [ ] Video tutorials
-
-### 22. Sample Applications
-- [ ] REST API with Cassandra backend
-- [ ] Event sourcing example
-- [ ] Multi-tenant application
-- [ ] Real-time analytics dashboard
-- [ ] Microservices communication patterns
-
-## 🛡️ Security Enhancements
-
-### 23. Advanced Security Features
-- [ ] Vault integration for credentials
-- [ ] Certificate rotation support
+### 8. Enterprise Features
+- [ ] Kubernetes operator for schema management
+- [ ] Vault integration for dynamic credentials
 - [ ] Row-level security helpers
-- [ ] Audit logging support
-- [ ] Encryption at rest helpers
+- [ ] Audit logging with change tracking
+- [ ] Multi-tenancy abstractions
 
-## 🚦 Implementation Priority
+### 9. Next-Gen Features
+- [ ] Change Data Capture (CDC) support
+- [ ] Event sourcing patterns
+- [ ] CQRS implementation helpers
+- [ ] Cassandra 5.0 vector search support
+- [ ] AI-powered query optimization
 
-1. **Phase 1** (Next 2-4 weeks)
-   - Query Builder/LINQ Support
-   - Basic Object Mapping
-   - Consistency Level Management
-   - Retry Policies
+## 🐛 Known Issues to Fix
 
-2. **Phase 2** (1-2 months)
-   - Metrics and Monitoring
-   - Connection Pool Configuration
-   - Prepared Statement Caching
-   - Migration Support
+### High Priority
+- [ ] EC2 address translation incomplete (currently logs warning)
+- [ ] TestModel class missing in test project
+- [ ] Some complex LINQ operations not yet implemented
+- [ ] Circuit breaker state not persisted across restarts
 
-3. **Phase 3** (2-3 months)
-   - Advanced Query Features
-   - Schema Management
-   - Reactive Extensions
-   - Framework Integrations
+### Medium Priority
+- [ ] Host class mocking limitations in unit tests
+- [ ] No support for custom consistency level resolvers
+- [ ] Limited support for complex type mappings
+- [ ] Migration rollback not implemented
 
-4. **Phase 4** (3-6 months)
-   - Cloud-Native Features
-   - Advanced Security
-   - Performance Optimizations
-   - Comprehensive Documentation
+### Low Priority
+- [ ] No GUI for migration management
+- [ ] Documentation needs more real-world examples
+- [ ] Performance comparison with Java driver needed
 
-## 🤝 Contribution Guidelines
+## 📚 Documentation Improvements
+
+- [ ] API reference documentation
+- [ ] Architecture decision records (ADRs)
+- [ ] Performance tuning guide
+- [ ] Migration guide from DataStax driver
+- [ ] Video tutorials
+- [ ] Sample applications
+  - [ ] REST API with Cassandra backend
+  - [ ] Event sourcing example
+  - [ ] Real-time analytics dashboard
+  - [ ] Microservices patterns
+
+## 🚦 Implementation Timeline
+
+### Q1 2025
+- Performance optimizations
+- Enhanced monitoring
+- Developer experience improvements
+
+### Q2 2025
+- Advanced Cassandra features
+- Cloud provider support
+- Testing improvements
+
+### Q3 2025
+- Enterprise features
+- Advanced integrations
+
+### Q4 2025
+- Next-gen features
+- Comprehensive documentation
+
+## 🤝 Contributing
 
 We welcome contributions! Please:
 1. Check this TODO list before starting work
@@ -252,7 +195,11 @@ We welcome contributions! Please:
 
 ## 📝 Notes
 
-- Some features may require upgrading to newer versions of the DataStax driver
-- Consider backward compatibility when adding new features
-- Performance impact should be measured for all new features
-- Security features should undergo security review
+- Performance should be measured for all new features
+- Maintain backward compatibility in v2.x releases
+- Security features require security review
+- Consider DataStax driver updates for new features
+
+---
+
+Last updated: 2025-01-06

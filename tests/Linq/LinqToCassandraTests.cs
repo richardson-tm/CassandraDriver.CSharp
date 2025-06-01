@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using QueryBuilder.Linq; // Your LINQ provider namespace
-using QueryBuilder.Queries; // Your QueryBuilder namespace (for SelectQueryBuilder if needed, or for comparison)
+using CassandraDriver.Linq; // Your LINQ provider namespace
+using CassandraDriver.Queries; // Your QueryBuilder namespace (for SelectQueryBuilder if needed, or for comparison)
 using Xunit;
 
 // Assuming TestModel is accessible here, e.g., defined in CassandraDriver.Tests.Queries or a shared test models project.

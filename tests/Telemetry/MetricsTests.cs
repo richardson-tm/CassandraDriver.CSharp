@@ -5,7 +5,7 @@ using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Threading.Tasks;
 using Cassandra;
-using Cassandra.Exceptions; // For specific exceptions
+// Exception types are in the main Cassandra namespace
 using CassandraDriver.Configuration;
 using CassandraDriver.Mapping;
 using CassandraDriver.Services;

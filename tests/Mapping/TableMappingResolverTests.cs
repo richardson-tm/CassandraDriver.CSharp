@@ -57,7 +57,7 @@ namespace CassandraDriver.Tests.Mapping
         [Column("main_address")]
         public AddressUdt MainAddress { get; set; } // C# type is AddressUdt
 
-        [Udt("contact_numbers", IsFrozen = false)] // Example if IsFrozen was a property on UdtAttribute
+        [Udt("contact_numbers")] // UDT attribute
         [Column("phone_numbers", TypeName = "list<frozen<text>>")] // Explicit Cassandra type
         public List<string> PhoneNumbers { get; set; }
     }

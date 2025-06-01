@@ -4,12 +4,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 
-namespace QueryBuilder.Queries
+namespace CassandraDriver.Queries
 {
     public class InsertQueryBuilder<T>
     {
         private readonly List<(string ColumnName, object Value)> _values = new List<(string, object)>();
-        private string _tableName;
+        private string _tableName = string.Empty;
 
         public InsertQueryBuilder<T> Into(string tableName)
         {
@@ -21,7 +21,7 @@ namespace QueryBuilder.Queries
         {
             var memberExpression = (MemberExpression)propertySelector.Body;
             var columnName = memberExpression.Member.Name;
-            _values.Add((columnName, value));
+            _values.Add((columnName, value!));
             return this;
         }
 

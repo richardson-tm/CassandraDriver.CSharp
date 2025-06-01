@@ -152,6 +152,17 @@ namespace CassandraDriver.Queries
             return this;
         }
 
+        public (string Query, List<object> Parameters) Build()
+        {
+            var statement = BuildStatement();
+            var parameters = new List<object>();
+            if (statement.QueryValues != null)
+            {
+                parameters.AddRange(statement.QueryValues);
+            }
+            return (statement.QueryString, parameters);
+        }
+
         public SimpleStatement BuildStatement()
         {
             var sb = new StringBuilder("SELECT ");
@@ -267,12 +278,24 @@ namespace CassandraDriver.Queries
             // Subsequent automatic page fetches by the driver might not be captured by those specific metrics.
             var rowSet = await _cassandraService.ExecuteAsync(statement).ConfigureAwait(false);
 
-            // Use RowSet.AutoPageAsync for automatic transparent paging
-            // ConfigureAwait(false) is important in IAsyncEnumerable to avoid capturing sync context
-            await foreach (var row in rowSet.AutoPageAsync(cancellationToken).ConfigureAwait(false))
+            // Manual paging for driver v3
+            foreach (var row in rowSet)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 yield return _cassandraService.MapRowToEntity<T>(row, _tableMapping);
+            }
+            
+            // Handle subsequent pages
+            while (rowSet.PagingState != null && !cancellationToken.IsCancellationRequested)
+            {
+                statement.SetPagingState(rowSet.PagingState);
+                rowSet = await _cassandraService.ExecuteAsync(statement).ConfigureAwait(false);
+                
+                foreach (var row in rowSet)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    yield return _cassandraService.MapRowToEntity<T>(row, _tableMapping);
+                }
             }
         }
     }

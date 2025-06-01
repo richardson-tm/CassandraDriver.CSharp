@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using QueryBuilder.Queries;
+using CassandraDriver.Queries;
 using Xunit;
 
 // Using TestModel from SelectQueryBuilderTests.cs

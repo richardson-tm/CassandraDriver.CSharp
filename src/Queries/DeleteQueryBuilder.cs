@@ -4,12 +4,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 
-namespace QueryBuilder.Queries
+namespace CassandraDriver.Queries
 {
     public class DeleteQueryBuilder<T>
     {
         private readonly List<string> _whereClauses = new List<string>();
-        private string _tableName;
+        private string _tableName = string.Empty;
 
         public DeleteQueryBuilder<T> From(string tableName)
         {
@@ -21,7 +21,7 @@ namespace QueryBuilder.Queries
         {
             var memberExpression = (MemberExpression)propertySelector.Body;
             var columnName = memberExpression.Member.Name;
-            _whereClauses.Add($"{columnName} = {FormatValue(value)}");
+            _whereClauses.Add($"{columnName} = {FormatValue(value!)}");
             return this;
         }
 
@@ -30,7 +30,7 @@ namespace QueryBuilder.Queries
         {
             var memberExpression = (MemberExpression)propertySelector.Body;
             var columnName = memberExpression.Member.Name;
-            _whereClauses.Add($"{columnName} {comparisonOperator} {FormatValue(value)}");
+            _whereClauses.Add($"{columnName} {comparisonOperator} {FormatValue(value!)}");
             return this;
         }
 
@@ -63,7 +63,7 @@ namespace QueryBuilder.Queries
                 return $"'{dateTime:yyyy-MM-dd HH:mm:ss}'";
             }
 
-            return value.ToString();
+            return value.ToString() ?? string.Empty;
         }
     }
 }

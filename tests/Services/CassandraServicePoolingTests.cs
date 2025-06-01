@@ -62,7 +62,7 @@ namespace CassandraDriver.Tests.Services
             // This method is new and intended to be overridden for testing.
             // In real CassandraService, this logic is inside Connect().
             // This refactoring makes testing pooling options easier.
-            protected override Builder ConfigurePooling(Builder builder, PoolingOptionsConfiguration poolingConfig)
+            protected override Builder ConfigurePoolingOptions(Builder builder, PoolingOptionsConfiguration poolingConfig)
             {
                 var poolingOptions = MockPoolingOptionsInstance.Object; // Use the mocked PoolingOptions
 

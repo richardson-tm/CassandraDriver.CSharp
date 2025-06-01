@@ -4,14 +4,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 
-namespace QueryBuilder.Queries
+namespace CassandraDriver.Queries
 {
     public class UpdateQueryBuilder<T>
     {
         private readonly List<(string ColumnName, object Value)> _setValues = new List<(string, object)>();
         // Store where clauses as (ColumnName, Operator, Value) to build parameterized queries
         private readonly List<(string ColumnName, string Operator, object Value)> _whereClauses = new List<(string, string, object)>();
-        private string _tableName;
+        private string _tableName = string.Empty;
 
         public UpdateQueryBuilder<T> Table(string tableName)
         {
@@ -23,7 +23,7 @@ namespace QueryBuilder.Queries
         {
             var memberExpression = (MemberExpression)propertySelector.Body;
             var columnName = memberExpression.Member.Name;
-            _setValues.Add((columnName, value));
+            _setValues.Add((columnName, value!));
             return this;
         }
 
@@ -37,7 +37,7 @@ namespace QueryBuilder.Queries
         {
             var memberExpression = (MemberExpression)propertySelector.Body;
             var columnName = memberExpression.Member.Name;
-            _whereClauses.Add((columnName, comparisonOperator, value));
+            _whereClauses.Add((columnName, comparisonOperator, value!));
             return this;
         }
 

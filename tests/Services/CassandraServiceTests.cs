@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
-using Cassandra.Exceptions; // Added for exception types
+// Exception types are in the main Cassandra namespace
 
 namespace CassandraDriver.Tests.Services;
 

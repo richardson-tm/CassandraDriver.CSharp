@@ -2,6 +2,7 @@ using System;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 using CassandraDriver.Mapping;
+using CassandraDriver.Queries.Expressions; // For ExpressionHelper
 using CassandraDriver.Services; // Required for CassandraService
 using Microsoft.Extensions.Logging; // Optional: if SchemaManager needs its own logger
 
