@@ -1,0 +1,82 @@
+name: .NET Build CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build project
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Run unit tests
+        run: dotnet test --configuration Release --no-build --verbosity normal --filter "Category!=Integration"
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    needs: build
+
+    services:
+      cassandra-seed:
+        image: cassandra:5.0
+        ports:
+          - 9042:9042
+        env:
+          CASSANDRA_CLUSTER_NAME: TestCluster
+          CASSANDRA_DC: datacenter1
+          CASSANDRA_SEEDS: cassandra-seed
+          HEAP_NEWSIZE: 128M
+          MAX_HEAP_SIZE: 1024M
+        options: >-
+          --health-cmd "cqlsh -e 'SELECT key FROM system.local;'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build project
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Wait for Cassandra
+        run: |
+          timeout 60s bash -c 'until nc -z localhost 9042; do sleep 1; done'
+          sleep 10
+
+      - name: Setup test keyspace
+        run: |
+          docker exec ${{ job.services.cassandra-seed.id }} cqlsh -e "CREATE KEYSPACE IF NOT EXISTS test_keyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};"
+
+      - name: Run integration tests
+        run: dotnet test --configuration Release --no-build --verbosity normal --filter "Category=Integration"
+        env:
+          Cassandra__ContactPoints__0: localhost
+          Cassandra__ContactPoints__1: localhost
+          Cassandra__Keyspace: test_keyspace
