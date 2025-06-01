@@ -421,3 +421,6 @@ FodyWeavers.xsd
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# Agent files
+CLAUDE.md
